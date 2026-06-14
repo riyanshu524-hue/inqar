@@ -22,6 +22,8 @@ import {
 import { conversationsRouter, messagesRouter } from "./routers-messaging";
 import { aiRouter } from "./routers-ai";
 import { vipRouter } from "./routers-vip";
+import { notificationsRouter } from "./routers-notifications";
+import { adminRouter } from "./routers-admin";
 
 export const appRouter = router({
   system: systemRouter,
@@ -241,6 +243,18 @@ export const appRouter = router({
   // ============================================================================
 
   ai: aiRouter,
+
+  // ============================================================================
+  // NOTIFICATIONS
+  // ============================================================================
+
+  notifications: notificationsRouter,
+
+  // ============================================================================
+  // ADMIN PANEL
+  // ============================================================================
+
+  admin: adminRouter,
 });
 
 export type AppRouter = typeof appRouter;
