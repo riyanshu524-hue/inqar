@@ -4,6 +4,24 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
+import {
+  postsRouter,
+  likesRouter,
+  commentsRouter,
+  savesRouter,
+  storiesRouter,
+  hashtagsRouter,
+} from "./routers-posts";
+import { searchRouter, exploreRouter } from "./routers-search";
+import {
+  marketplaceRouter,
+  ordersRouter,
+  reviewsRouter,
+  sellerStatsRouter,
+} from "./routers-marketplace";
+import { conversationsRouter, messagesRouter } from "./routers-messaging";
+import { aiRouter } from "./routers-ai";
+import { vipRouter } from "./routers-vip";
 
 export const appRouter = router({
   system: systemRouter,
@@ -182,58 +200,47 @@ export const appRouter = router({
   // VIP SUBSCRIPTION ROUTES
   // ============================================================================
 
-  vip: router({
-    // Get VIP subscription status
-    getSubscription: protectedProcedure.query(async ({ ctx }) => {
-      const subscription = await db.getVipSubscription(ctx.user.id);
-      return subscription || null;
-    }),
+  vip: vipRouter,
 
-    // Check if user is VIP
-    isVip: protectedProcedure.query(async ({ ctx }) => {
-      const subscription = await db.getVipSubscription(ctx.user.id);
-      return {
-        isVip: subscription?.isActive ?? false,
-        tier: subscription?.tier ?? null,
-      };
-    }),
+  // ============================================================================
+  // SOCIAL FEATURES - POSTS, LIKES, COMMENTS, SAVES, STORIES, HASHTAGS
+  // ============================================================================
 
-    // Get government VIP application status
-    getGovernmentVipApplication: protectedProcedure.query(async ({ ctx }) => {
-      const application = await db.getGovernmentVipApplication(ctx.user.id);
-      return application || null;
-    }),
+  posts: postsRouter,
+  likes: likesRouter,
+  comments: commentsRouter,
+  saves: savesRouter,
+  stories: storiesRouter,
+  hashtags: hashtagsRouter,
 
-    // Submit government VIP application
-    submitGovernmentVipApplication: protectedProcedure
-      .input(
-        z.object({
-          firstName: z.string(),
-          lastName: z.string(),
-          age: z.number().optional(),
-          dateOfBirth: z.date().optional(),
-          position: z.string(),
-          department: z.string(),
-          reason: z.string(),
-          idCardUrl: z.string(),
-          idCardKey: z.string(),
-        })
-      )
-      .mutation(async ({ ctx, input }) => {
-        // Check if already has application
-        const existing = await db.getGovernmentVipApplication(ctx.user.id);
-        if (existing) {
-          throw new Error("You already have a government VIP application");
-        }
+  // ============================================================================
+  // SEARCH & EXPLORE
+  // ============================================================================
 
-        const application = await db.createGovernmentVipApplication({
-          userId: ctx.user.id,
-          ...input,
-        });
+  search: searchRouter,
+  explore: exploreRouter,
 
-        return application;
-      }),
-  }),
+  // ============================================================================
+  // MARKETPLACE (InQ BAZAR)
+  // ============================================================================
+
+  marketplace: marketplaceRouter,
+  orders: ordersRouter,
+  reviews: reviewsRouter,
+  sellerStats: sellerStatsRouter,
+
+  // ============================================================================
+  // DIRECT MESSAGING
+  // ============================================================================
+
+  conversations: conversationsRouter,
+  messages: messagesRouter,
+
+  // ============================================================================
+  // INQAR AI ASSISTANT
+  // ============================================================================
+
+  ai: aiRouter,
 });
 
 export type AppRouter = typeof appRouter;
