@@ -285,8 +285,9 @@ class SDKServer {
         const userInfo = await this.getUserInfoWithJwt(sessionCookie ?? "");
         await db.upsertUser({
           openId: userInfo.openId,
+          username: userInfo.email?.split('@')[0] || `user_${userInfo.openId.slice(0, 8)}`,
+          email: userInfo.email || `${userInfo.openId}@inqar.local`,
           name: userInfo.name || null,
-          email: userInfo.email ?? null,
           loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
           lastSignedIn: signedInAt,
         });
@@ -303,6 +304,8 @@ class SDKServer {
 
     await db.upsertUser({
       openId: user.openId,
+      username: user.username || `user_${user.openId.slice(0, 8)}`,
+      email: user.email || `${user.openId}@inqar.local`,
       lastSignedIn: signedInAt,
     });
 
@@ -325,8 +328,13 @@ function buildCronUser(
   return {
     id: -1,
     openId: userInfo.openId,
+    username: `cron_${userInfo.openId.slice(0, 8)}`,
+    email: `${userInfo.openId}@inqar.local`,
     name: userInfo.name || "Manus Scheduled Task",
-    email: null,
+    bio: null,
+    avatarUrl: null,
+    avatarKey: null,
+    isPrivate: false,
     loginMethod: null,
     role: "user",
     createdAt: now,

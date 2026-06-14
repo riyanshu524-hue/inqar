@@ -1,7 +1,20 @@
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
-import { ENV } from './_core/env';
+import {
+  InsertUser,
+  users,
+  follows,
+  User,
+  Follow,
+  InsertFollow,
+  vipSubscriptions,
+  VipSubscription,
+  InsertVipSubscription,
+  governmentVipApplications,
+  GovernmentVipApplication,
+  InsertGovernmentVipApplication,
+} from "../drizzle/schema";
+import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -30,12 +43,27 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   }
 
   try {
+    // Generate username from email or name if not provided
+    let username = user.username;
+    if (!username) {
+      const baseUsername =
+        user.email?.split("@")[0] ||
+        user.name?.replace(/\s+/g, "") ||
+        `user_${user.openId.slice(0, 8)}`;
+      username = baseUsername;
+    }
+
+    // Ensure email is provided
+    const email = user.email || `${user.openId}@inqar.local`;
+
     const values: InsertUser = {
       openId: user.openId,
+      username,
+      email,
     };
     const updateSet: Record<string, unknown> = {};
 
-    const textFields = ["name", "email", "loginMethod"] as const;
+    const textFields = ["name", "loginMethod"] as const;
     type TextField = (typeof textFields)[number];
 
     const assignNullable = (field: TextField) => {
@@ -56,8 +84,8 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       values.role = user.role;
       updateSet.role = user.role;
     } else if (user.openId === ENV.ownerOpenId) {
-      values.role = 'admin';
-      updateSet.role = 'admin';
+      values.role = "admin";
+      updateSet.role = "admin";
     }
 
     if (!values.lastSignedIn) {
@@ -84,9 +112,261 @@ export async function getUserByOpenId(openId: string) {
     return undefined;
   }
 
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
+  const result = await db
+    .select()
+    .from(users)
+    .where(eq(users.openId, openId))
+    .limit(1);
 
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+export async function getUserById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const result = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, id))
+    .limit(1);
+
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getUserByUsername(username: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const result = await db
+    .select()
+    .from(users)
+    .where(eq(users.username, username))
+    .limit(1);
+
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function updateUserProfile(
+  userId: number,
+  updates: Partial<{
+    name: string;
+    bio: string;
+    avatarUrl: string;
+    avatarKey: string;
+    isPrivate: boolean;
+  }>
+) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const result = await db
+    .update(users)
+    .set(updates)
+    .where(eq(users.id, userId));
+
+  return result;
+}
+
+// ============================================================================
+// FOLLOW SYSTEM
+// ============================================================================
+
+export async function followUser(followerId: number, followingId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  // Prevent self-follow
+  if (followerId === followingId) {
+    throw new Error("Cannot follow yourself");
+  }
+
+  const result = await db.insert(follows).values({
+    followerId,
+    followingId,
+  });
+
+  return result;
+}
+
+export async function unfollowUser(followerId: number, followingId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const result = await db
+    .delete(follows)
+    .where(
+      and(
+        eq(follows.followerId, followerId),
+        eq(follows.followingId, followingId)
+      )
+    );
+
+  return result;
+}
+
+export async function isFollowing(
+  followerId: number,
+  followingId: number
+): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+
+  const result = await db
+    .select()
+    .from(follows)
+    .where(
+      and(
+        eq(follows.followerId, followerId),
+        eq(follows.followingId, followingId)
+      )
+    )
+    .limit(1);
+
+  return result.length > 0;
+}
+
+export async function getFollowersCount(userId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+
+  const result = await db
+    .select()
+    .from(follows)
+    .where(eq(follows.followingId, userId));
+
+  return result.length;
+}
+
+export async function getFollowingCount(userId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+
+  const result = await db
+    .select()
+    .from(follows)
+    .where(eq(follows.followerId, userId));
+
+  return result.length;
+}
+
+// ============================================================================
+// VIP SUBSCRIPTIONS
+// ============================================================================
+
+export async function getVipSubscription(
+  userId: number
+): Promise<VipSubscription | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const result = await db
+    .select()
+    .from(vipSubscriptions)
+    .where(eq(vipSubscriptions.userId, userId))
+    .limit(1);
+
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function createVipSubscription(
+  subscription: InsertVipSubscription
+) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const result = await db.insert(vipSubscriptions).values(subscription);
+  return result;
+}
+
+export async function updateVipSubscription(
+  userId: number,
+  updates: Partial<VipSubscription>
+) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const result = await db
+    .update(vipSubscriptions)
+    .set(updates)
+    .where(eq(vipSubscriptions.userId, userId));
+
+  return result;
+}
+
+// ============================================================================
+// GOVERNMENT VIP APPLICATIONS
+// ============================================================================
+
+export async function getGovernmentVipApplication(
+  userId: number
+): Promise<GovernmentVipApplication | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const result = await db
+    .select()
+    .from(governmentVipApplications)
+    .where(eq(governmentVipApplications.userId, userId))
+    .limit(1);
+
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function createGovernmentVipApplication(
+  application: InsertGovernmentVipApplication
+) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const result = await db
+    .insert(governmentVipApplications)
+    .values(application);
+  return result;
+}
+
+export async function getPendingGovernmentVipApplications() {
+  const db = await getDb();
+  if (!db) return [];
+
+  const result = await db
+    .select()
+    .from(governmentVipApplications)
+    .where(eq(governmentVipApplications.status, "pending"));
+
+  return result;
+}
+
+export async function approveGovernmentVipApplication(applicationId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const result = await db
+    .update(governmentVipApplications)
+    .set({
+      status: "approved",
+      approvedAt: new Date(),
+    })
+    .where(eq(governmentVipApplications.id, applicationId));
+
+  return result;
+}
+
+export async function declineGovernmentVipApplication(
+  applicationId: number,
+  reason: string
+) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const result = await db
+    .update(governmentVipApplications)
+    .set({
+      status: "declined",
+      declinedAt: new Date(),
+      declineReason: reason,
+    })
+    .where(eq(governmentVipApplications.id, applicationId));
+
+  return result;
+}
