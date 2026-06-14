@@ -11,6 +11,8 @@ import Feed from "./pages/Feed";
 import Profile from "./pages/Profile";
 import ProfileEdit from "./pages/ProfileEdit";
 import Notifications from "./pages/Notifications";
+import UserProfile from "./pages/UserProfile";
+import PrivacySettings from "./pages/PrivacySettings";
 import Explore from "./pages/Explore";
 import Messages from "./pages/Messages";
 import Marketplace from "./pages/Marketplace";
@@ -47,6 +49,8 @@ function Router() {
       <Switch>
         <Route path="/feed" component={Feed} />
         <Route path="/profile/edit" component={ProfileEdit} />
+        <Route path="/settings/privacy" component={PrivacySettings} />
+        <Route path="/@/:username" component={UserProfile} />
         <Route path="/profile/:username" component={Profile} />
         <Route path="/notifications" component={Notifications} />
         <Route path="/explore" component={Explore} />

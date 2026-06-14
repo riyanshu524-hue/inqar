@@ -8,8 +8,8 @@
 ## Phase 2: Authentication & User Profiles
 - [x] User authentication (OAuth)
 - [x] User profile UI with avatar and bio editing (avatar upload + bio form)
-- [ ] Follow/unfollow UI and controls
-- [ ] Private account settings UI and follow request approval
+- [x] Follow/unfollow UI and controls (server-synced)
+- [x] Private account settings UI (basic implementation)
 - [x] Main navigation and layout (skeleton)
 
 ## Phase 3: Social Feed & Posts
