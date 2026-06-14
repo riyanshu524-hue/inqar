@@ -9,6 +9,8 @@ import NotFound from "./pages/NotFound";
 import Home from "./pages/Home";
 import Feed from "./pages/Feed";
 import Profile from "./pages/Profile";
+import ProfileEdit from "./pages/ProfileEdit";
+import Notifications from "./pages/Notifications";
 import Explore from "./pages/Explore";
 import Messages from "./pages/Messages";
 import Marketplace from "./pages/Marketplace";
@@ -44,7 +46,9 @@ function Router() {
     <MainLayout>
       <Switch>
         <Route path="/feed" component={Feed} />
+        <Route path="/profile/edit" component={ProfileEdit} />
         <Route path="/profile/:username" component={Profile} />
+        <Route path="/notifications" component={Notifications} />
         <Route path="/explore" component={Explore} />
         <Route path="/messages" component={Messages} />
         <Route path="/marketplace" component={Marketplace} />

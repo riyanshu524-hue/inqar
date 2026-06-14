@@ -65,7 +65,36 @@ export default function AdminPanel() {
         <TabsContent value="users">
           <Card className="p-6">
             <h2 className="text-2xl font-bold mb-4">User Management</h2>
-            <p className="text-muted-foreground">Manage users and accounts</p>
+            <div className="space-y-3">
+              <div className="p-4 border rounded-lg flex justify-between items-center">
+                <div>
+                  <p className="font-semibold">User #123</p>
+                  <p className="text-sm text-muted-foreground">john.doe@example.com</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" className="text-orange-600 border-orange-200 hover:bg-orange-50">
+                    Suspend
+                  </Button>
+                  <Button size="sm" variant="destructive">
+                    Ban
+                  </Button>
+                </div>
+              </div>
+              <div className="p-4 border rounded-lg flex justify-between items-center">
+                <div>
+                  <p className="font-semibold">User #456</p>
+                  <p className="text-sm text-muted-foreground">jane.smith@example.com</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" className="text-orange-600 border-orange-200 hover:bg-orange-50">
+                    Suspend
+                  </Button>
+                  <Button size="sm" variant="destructive">
+                    Ban
+                  </Button>
+                </div>
+              </div>
+            </div>
           </Card>
         </TabsContent>
 

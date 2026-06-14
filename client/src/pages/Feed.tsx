@@ -10,10 +10,13 @@ export default function Feed() {
   const { user, isAuthenticated, loading } = useAuth();
   const [selectedPost, setSelectedPost] = useState<number | null>(null);
 
-  const { data: posts, isLoading: postsLoading } = trpc.posts.getFeedPosts.useQuery(
+  const { data: feedData, isLoading: postsLoading } = trpc.posts.getFeedPosts.useQuery(
     { limit: 20 },
     { enabled: isAuthenticated }
   );
+
+  // Personalized feed: Filter posts from followed users only
+  const posts = feedData?.filter((post: any) => post.author?.isFollowed !== false) || [];
 
   const likePostMutation = trpc.likes.likePost.useMutation();
   const savePostMutation = trpc.saves.savePost.useMutation();
@@ -63,7 +66,7 @@ export default function Feed() {
           <div className="flex justify-center py-12">
             <Spinner />
           </div>
-        ) : posts && posts.length > 0 ? (
+        ) : posts.length > 0 ? (
           posts.map((post: any) => (
             <Card key={post.id} className="overflow-hidden hover:shadow-lg transition-shadow">
               {/* Post Header */}

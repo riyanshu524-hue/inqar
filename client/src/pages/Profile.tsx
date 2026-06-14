@@ -1,14 +1,21 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
-import { Heart, MessageCircle, Share2 } from "lucide-react";
+import { Heart, MessageCircle, Crown, CheckCircle } from "lucide-react";
+import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 
 export default function Profile() {
+  const [, navigate] = useLocation();
   const { user: currentUser } = useAuth();
 
   const { data: userProfile, isLoading } = trpc.user.getProfile.useQuery(undefined, {
+    enabled: !!currentUser,
+  });
+
+  const { data: vipStatus } = trpc.vip.getSubscription.useQuery(undefined, {
     enabled: !!currentUser,
   });
 
@@ -41,11 +48,25 @@ export default function Profile() {
           <div className="flex-1">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h1 className="text-3xl font-bold">{userProfile.name || userProfile.username}</h1>
+                <div className="flex items-center gap-2 mb-2">
+                  <h1 className="text-3xl font-bold">{userProfile.name || userProfile.username}</h1>
+                  {vipStatus?.tier === "government" && (
+                    <Badge className="bg-yellow-500 text-white">
+                      <Crown className="w-3 h-3 mr-1" />
+                      Government VIP
+                    </Badge>
+                  )}
+                  {vipStatus?.tier === "regular" && (
+                    <Badge className="bg-blue-500 text-white">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      VIP
+                    </Badge>
+                  )}
+                </div>
                 <p className="text-muted-foreground">@{userProfile.username}</p>
               </div>
               <div className="flex gap-2">
-                <Button>Edit Profile</Button>
+                <Button onClick={() => navigate("/profile/edit")}>Edit Profile</Button>
               </div>
             </div>
 
@@ -54,15 +75,15 @@ export default function Profile() {
             {/* Stats */}
             <div className="flex gap-6">
               <div>
-                <p className="font-bold text-lg">0</p>
+                <p className="font-bold text-lg">{userPosts?.length || 0}</p>
                 <p className="text-sm text-muted-foreground">Posts</p>
               </div>
               <div>
-                <p className="font-bold text-lg">0</p>
+                <p className="font-bold text-lg">{userProfile.followersCount || 0}</p>
                 <p className="text-sm text-muted-foreground">Followers</p>
               </div>
               <div>
-                <p className="font-bold text-lg">0</p>
+                <p className="font-bold text-lg">{userProfile.followingCount || 0}</p>
                 <p className="text-sm text-muted-foreground">Following</p>
               </div>
             </div>
