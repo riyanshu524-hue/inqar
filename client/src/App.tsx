@@ -47,6 +47,7 @@ function Router() {
   return (
     <MainLayout>
       <Switch>
+        <Route path="/" component={Feed} />
         <Route path="/feed" component={Feed} />
         <Route path="/profile/edit" component={ProfileEdit} />
         <Route path="/settings/privacy" component={PrivacySettings} />

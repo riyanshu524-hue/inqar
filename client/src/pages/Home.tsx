@@ -8,9 +8,10 @@ export default function Home() {
   const { user, isAuthenticated } = useAuth();
   const [location, navigate] = useLocation();
 
-  // Use effect to navigate after render
-  if (isAuthenticated && user && location === "/") {
-    setTimeout(() => navigate("/feed"), 0);
+  // Redirect authenticated users to feed
+  if (isAuthenticated && user) {
+    navigate("/feed");
+    return null;
   }
 
   return (
