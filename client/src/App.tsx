@@ -19,6 +19,7 @@ import Marketplace from "./pages/Marketplace";
 import AIAssistant from "./pages/AIAssistant";
 import VIPSubscription from "./pages/VIPSubscription";
 import AdminPanel from "./pages/AdminPanel";
+import Settings from "./pages/Settings";
 import { Spinner } from "@/components/ui/spinner";
 
 function Router() {
@@ -54,6 +55,7 @@ function Router() {
         <Route path="/@/:username" component={UserProfile} />
         <Route path="/profile/:username" component={Profile} />
         <Route path="/notifications" component={Notifications} />
+        <Route path="/settings" component={Settings} />
         <Route path="/explore" component={Explore} />
         <Route path="/messages" component={Messages} />
         <Route path="/marketplace" component={Marketplace} />

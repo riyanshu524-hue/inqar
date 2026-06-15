@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
-import { Heart, MessageCircle, Crown, CheckCircle } from "lucide-react";
+import { Heart, MessageCircle, Crown, CheckCircle, Settings } from "lucide-react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -67,6 +67,9 @@ export default function Profile() {
               </div>
               <div className="flex gap-2">
                 <Button onClick={() => navigate("/profile/edit")}>Edit Profile</Button>
+                <Button variant="outline" size="icon" onClick={() => navigate("/settings")}>
+                  <Settings className="w-4 h-4" />
+                </Button>
               </div>
             </div>
 

@@ -2,141 +2,250 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
-import { Shield, Users, FileText, CheckCircle } from "lucide-react";
+import { Users, FileText, CheckCircle, BarChart3, Trash2, Check } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 
 export default function AdminPanel() {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [selectedTab, setSelectedTab] = useState("users");
 
-  const { data: stats, isLoading: statsLoading } = trpc.admin.getDashboardStats.useQuery(undefined);
-  const { data: pendingVipApps, isLoading: vipAppsLoading } = trpc.admin.getPendingVipApplications.useQuery(undefined);
+  // Fetch real data from database
+  const { data: stats, isLoading: statsLoading } = trpc.admin.getDashboardStats.useQuery();
+  const { data: users, isLoading: usersLoading, refetch: refetchUsers } = trpc.admin.getAllUsers.useQuery({});
+  const { data: posts, isLoading: postsLoading, refetch: refetchPosts } = trpc.admin.getAllPosts.useQuery({});
+  const { data: vipRequests, isLoading: vipLoading, refetch: refetchVip } = trpc.admin.getPendingVipApplications.useQuery();
+  const { data: listings, isLoading: listingsLoading, refetch: refetchListings } = trpc.admin.getAllMarketplaceListings.useQuery({});
+
+  // Mutations for admin actions
+  const deletePostMutation = trpc.admin.deletePost.useMutation({
+    onSuccess: () => {
+      toast.success("Post deleted");
+      refetchPosts();
+    },
+  });
+
+  const approveVipMutation = trpc.vip.approveApplication.useMutation({
+    onSuccess: () => {
+      toast.success("VIP application approved");
+      refetchVip();
+    },
+  });
+
+  const rejectVipMutation = trpc.vip.rejectApplication.useMutation({
+    onSuccess: () => {
+      toast.success("VIP application rejected");
+      refetchVip();
+    },
+  });
+
+  const deleteListingMutation = trpc.admin.deleteMarketplaceListing.useMutation({
+    onSuccess: () => {
+      toast.success("Listing deleted");
+      refetchListings();
+    },
+  });
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-4">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-8">
-        <Shield className="w-8 h-8 text-red-500" />
-        <h1 className="text-4xl font-bold">Admin Panel</h1>
-      </div>
+      <h1 className="text-3xl font-bold mb-8 flex items-center gap-2">
+        <BarChart3 className="w-8 h-8" />
+        Admin Dashboard
+      </h1>
 
-      {/* Stats Overview */}
+      {/* Stats Cards */}
       {statsLoading ? (
-        <div className="flex justify-center py-12">
+        <div className="flex justify-center py-8">
           <Spinner />
         </div>
       ) : stats ? (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Card className="p-6">
-            <p className="text-muted-foreground mb-2">Total Users</p>
-            <p className="text-3xl font-bold">{stats.users.totalUsers}</p>
+            <p className="text-sm text-muted-foreground mb-2">Total Users</p>
+            <p className="text-3xl font-bold">{stats.users.totalUsers || 0}</p>
           </Card>
           <Card className="p-6">
-            <p className="text-muted-foreground mb-2">Total Posts</p>
-            <p className="text-3xl font-bold">{stats.posts.totalPosts}</p>
+            <p className="text-sm text-muted-foreground mb-2">Total Posts</p>
+            <p className="text-3xl font-bold">{stats.posts.totalPosts || 0}</p>
           </Card>
           <Card className="p-6">
-            <p className="text-muted-foreground mb-2">Marketplace Listings</p>
-            <p className="text-3xl font-bold">{stats.marketplace.totalListings}</p>
+            <p className="text-sm text-muted-foreground mb-2">VIP Users</p>
+            <p className="text-3xl font-bold">{stats.vip.totalVips || 0}</p>
           </Card>
           <Card className="p-6">
-            <p className="text-muted-foreground mb-2">VIP Subscribers</p>
-            <p className="text-3xl font-bold">{stats.vip.totalVips}</p>
+            <p className="text-sm text-muted-foreground mb-2">Marketplace Listings</p>
+            <p className="text-3xl font-bold">{stats.marketplace.totalListings || 0}</p>
           </Card>
         </div>
       ) : null}
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="posts">Posts</TabsTrigger>
-          <TabsTrigger value="vip">VIP Applications</TabsTrigger>
+      <Tabs value={selectedTab} onValueChange={setSelectedTab}>
+        <TabsList className="mb-6">
+          <TabsTrigger value="users" className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            Users
+          </TabsTrigger>
+          <TabsTrigger value="posts" className="flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            Posts
+          </TabsTrigger>
+          <TabsTrigger value="vip" className="flex items-center gap-2">
+            <CheckCircle className="w-4 h-4" />
+            VIP Requests
+          </TabsTrigger>
+          <TabsTrigger value="marketplace" className="flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            Marketplace
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview">
-          <Card className="p-6">
-            <h2 className="text-2xl font-bold mb-4">Dashboard Overview</h2>
-            <p className="text-muted-foreground">Platform statistics and metrics</p>
-          </Card>
-        </TabsContent>
-
+        {/* Users Tab */}
         <TabsContent value="users">
           <Card className="p-6">
-            <h2 className="text-2xl font-bold mb-4">User Management</h2>
-            <div className="space-y-3">
-              <div className="p-4 border rounded-lg flex justify-between items-center">
-                <div>
-                  <p className="font-semibold">User #123</p>
-                  <p className="text-sm text-muted-foreground">john.doe@example.com</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" className="text-orange-600 border-orange-200 hover:bg-orange-50">
-                    Suspend
-                  </Button>
-                  <Button size="sm" variant="destructive">
-                    Ban
-                  </Button>
-                </div>
-              </div>
-              <div className="p-4 border rounded-lg flex justify-between items-center">
-                <div>
-                  <p className="font-semibold">User #456</p>
-                  <p className="text-sm text-muted-foreground">jane.smith@example.com</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" className="text-orange-600 border-orange-200 hover:bg-orange-50">
-                    Suspend
-                  </Button>
-                  <Button size="sm" variant="destructive">
-                    Ban
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="posts">
-          <Card className="p-6">
-            <h2 className="text-2xl font-bold mb-4">Post Moderation</h2>
-            <p className="text-muted-foreground">Review and moderate posts</p>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="vip">
-          <Card className="p-6">
-            <h2 className="text-2xl font-bold mb-4">VIP Applications</h2>
-            {vipAppsLoading ? (
-              <div className="flex justify-center py-12">
+            <h2 className="text-xl font-bold mb-4">User Management</h2>
+            {usersLoading ? (
+              <div className="flex justify-center py-8">
                 <Spinner />
               </div>
-            ) : pendingVipApps && pendingVipApps.length > 0 ? (
-              <div className="space-y-4">
-                {pendingVipApps.map((app: any) => (
-                  <Card key={app.id} className="p-4 border-l-4 border-yellow-500">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-bold">User {app.userId}</p>
-                        <p className="text-sm text-muted-foreground">Government VIP Application</p>
-                        <p className="text-sm mt-2">{app.governmentId}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" className="bg-green-600 hover:bg-green-700">
-                          <CheckCircle className="w-4 h-4 mr-2" />
-                          Approve
-                        </Button>
-                        <Button size="sm" variant="destructive">
-                          Reject
-                        </Button>
-                      </div>
+            ) : users && users.length > 0 ? (
+              <div className="space-y-3">
+                {users.map((user: any) => (
+                  <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex-1">
+                      <p className="font-semibold">{user.name || user.username}</p>
+                      <p className="text-sm text-muted-foreground">@{user.username}</p>
+                      <p className="text-xs text-muted-foreground">{user.email}</p>
                     </div>
-                  </Card>
+                    <div className="flex items-center gap-2">
+                      {user.role === "admin" && <Badge>Admin</Badge>}
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : (
-              <p className="text-muted-foreground">No pending applications</p>
+              <p className="text-center text-muted-foreground py-8">No users found</p>
+            )}
+          </Card>
+        </TabsContent>
+
+        {/* Posts Tab */}
+        <TabsContent value="posts">
+          <Card className="p-6">
+            <h2 className="text-xl font-bold mb-4">Post Moderation</h2>
+            {postsLoading ? (
+              <div className="flex justify-center py-8">
+                <Spinner />
+              </div>
+            ) : posts && posts.length > 0 ? (
+              <div className="space-y-3">
+                {posts.map((post: any) => (
+                  <div key={post.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex-1">
+                      <p className="font-semibold">{post.authorName || post.authorUsername}</p>
+                      <p className="text-sm text-muted-foreground line-clamp-2">{post.caption}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(post.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => deletePostMutation.mutate({ postId: post.id })}
+                      disabled={deletePostMutation.isPending}
+                    >
+                      <Trash2 className="w-4 h-4 mr-1" />
+                      Delete
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground py-8">No posts to moderate</p>
+            )}
+          </Card>
+        </TabsContent>
+
+        {/* VIP Requests Tab */}
+        <TabsContent value="vip">
+          <Card className="p-6">
+            <h2 className="text-xl font-bold mb-4">Government VIP Applications</h2>
+            {vipLoading ? (
+              <div className="flex justify-center py-8">
+                <Spinner />
+              </div>
+            ) : vipRequests && vipRequests.length > 0 ? (
+              <div className="space-y-3">
+                {vipRequests.map((request: any) => (
+                  <div key={request.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex-1">
+                      <p className="font-semibold">{request.userName || request.userUsername}</p>
+                      <p className="text-sm text-muted-foreground">@{request.userUsername}</p>
+                      <p className="text-xs text-muted-foreground">{request.documentUrl}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700"
+                        onClick={() => approveVipMutation.mutate({ applicationId: request.id })}
+                        disabled={approveVipMutation.isPending}
+                      >
+                        <Check className="w-4 h-4 mr-1" />
+                        Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => rejectVipMutation.mutate({ applicationId: request.id })}
+                        disabled={rejectVipMutation.isPending}
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Reject
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground py-8">No VIP applications pending</p>
+            )}
+          </Card>
+        </TabsContent>
+
+        {/* Marketplace Tab */}
+        <TabsContent value="marketplace">
+          <Card className="p-6">
+            <h2 className="text-xl font-bold mb-4">Marketplace Listings</h2>
+            {listingsLoading ? (
+              <div className="flex justify-center py-8">
+                <Spinner />
+              </div>
+            ) : listings && listings.length > 0 ? (
+              <div className="space-y-3">
+                {listings.map((listing: any) => (
+                  <div key={listing.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex-1">
+                      <p className="font-semibold">{listing.title}</p>
+                      <p className="text-sm text-muted-foreground">{listing.sellerName || listing.sellerUsername}</p>
+                      <p className="text-sm">
+                        ${listing.price} • Stock: {listing.stock}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => deleteListingMutation.mutate({ listingId: listing.id })}
+                      disabled={deleteListingMutation.isPending}
+                    >
+                      <Trash2 className="w-4 h-4 mr-1" />
+                      Delete
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground py-8">No listings to moderate</p>
             )}
           </Card>
         </TabsContent>
