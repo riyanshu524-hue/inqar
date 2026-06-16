@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
   Heart,
+  Plus,
   Home,
   Compass,
   MessageCircle,
@@ -39,6 +40,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
     { icon: ShoppingBag, label: "InQ Bazar", href: "/marketplace" },
     { icon: MessageCircle, label: "Messages", href: "/messages" },
     { icon: Sparkles, label: "INQAR AI", href: "/ai" },
+    { icon: Plus, label: "Create", href: "/create" },
   ];
 
   const handleLogout = async () => {
