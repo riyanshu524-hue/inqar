@@ -21,6 +21,7 @@ import VIPSubscription from "./pages/VIPSubscription";
 import AdminPanel from "./pages/AdminPanel";
 import Settings from "./pages/Settings";
 import Create from "./pages/Create";
+import AuthCallback from "./pages/AuthCallback";
 import { Spinner } from "@/components/ui/spinner";
 
 function Router() {
@@ -39,6 +40,7 @@ function Router() {
     return (
       <Switch>
         <Route path="/" component={Home} />
+        <Route path="/auth/callback" component={AuthCallback} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
       </Switch>

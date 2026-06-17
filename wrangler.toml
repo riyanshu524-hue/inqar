@@ -1,0 +1,92 @@
+name = "inqar"
+main = "dist/index.js"
+compatibility_date = "2024-12-19"
+compatibility_flags = ["nodejs_compat"]
+
+# Build configuration
+build = { command = "pnpm build" }
+
+# Environment variables
+vars = { NODE_ENV = "production" }
+
+# Secrets (configure these in Cloudflare Workers dashboard)
+# - VITE_APP_ID
+# - JWT_SECRET
+# - OAUTH_SERVER_URL
+# - OWNER_OPEN_ID
+# - BUILT_IN_FORGE_API_URL
+# - BUILT_IN_FORGE_API_KEY
+# - SUPABASE_URL
+# - SUPABASE_ANON_KEY
+# - SUPABASE_SERVICE_ROLE_KEY
+# - VITE_SUPABASE_PUBLISHABLE_KEY
+# - STRIPE_SECRET_KEY
+# - STRIPE_WEBHOOK_SECRET
+# - VITE_STRIPE_PUBLISHABLE_KEY
+
+# KV Namespace bindings for session storage
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "YOUR_KV_NAMESPACE_ID"
+preview_id = "YOUR_PREVIEW_KV_NAMESPACE_ID"
+
+# D1 Database binding (if using Cloudflare D1)
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "inqar"
+# database_id = "YOUR_DATABASE_ID"
+
+# Analytics Engine binding (optional)
+# [analytics]
+# enabled = true
+
+# Triggers for scheduled tasks (optional)
+# [triggers.crons]
+# crons = ["0 0 * * *"]
+
+# Routes configuration
+routes = [
+  { pattern = "inqar.workers.dev/*", zone_name = "workers.dev" }
+]
+
+# Observability
+observability = { enabled = true }
+
+# Limits
+limits = { cpu_milliseconds = 50000 }
+
+# Tail consumers (optional - for real-time logs)
+# tail_consumers = [
+#   { service = "my-logging-service" }
+# ]
+
+# Analytics Engine (optional)
+# [[analytics_engine_datasets]]
+# binding = "ANALYTICS"
+
+# Service bindings (optional - for calling other Workers)
+# [services]
+# auth = { service = "auth-worker", environment = "production" }
+
+# Durable Objects (optional - for stateful computing)
+# [[durable_objects.bindings]]
+# name = "COUNTER"
+# class_name = "Counter"
+# script_name = "counter-worker"
+
+# Environment-specific configuration
+[env.production]
+name = "inqar-production"
+routes = [
+  { pattern = "inqar.com/*", zone_id = "YOUR_ZONE_ID" }
+]
+
+[env.staging]
+name = "inqar-staging"
+routes = [
+  { pattern = "staging.inqar.com/*", zone_id = "YOUR_ZONE_ID" }
+]
+
+# Local development
+[env.development]
+name = "inqar-dev"
