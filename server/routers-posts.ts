@@ -52,6 +52,14 @@ export const postsRouter = router({
       };
     }),
 
+  // Get all posts (for admin panel)
+  getAllPosts: publicProcedure
+    .input(z.object({ limit: z.number().optional() }))
+    .query(async ({ input }) => {
+      const posts = await dbPosts.getAllPosts(input.limit || 50);
+      return posts;
+    }),
+
   // Get user's posts
   getUserPosts: publicProcedure
     .input(z.object({ userId: z.number(), limit: z.number().optional() }))
@@ -64,9 +72,8 @@ export const postsRouter = router({
   getFeedPosts: protectedProcedure
     .input(z.object({ limit: z.number().optional() }))
     .query(async ({ ctx, input }) => {
-      // Get list of users the current user is following
-      // TODO: Implement proper feed algorithm
-      const posts = await dbPosts.getUserPosts(ctx.user.id, input.limit);
+      // Get all posts from all users for the feed
+      const posts = await dbPosts.getAllPosts(input.limit || 20);
       return posts;
     }),
 

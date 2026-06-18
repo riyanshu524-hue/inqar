@@ -4,15 +4,45 @@ import { Badge } from "@/components/ui/badge";
 import { Check, Crown, Star } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useLocation } from "wouter";
+import { toast } from "sonner";
+import { useState } from "react";
 
 export default function VIP() {
   const { user } = useAuth();
+  const [, navigate] = useLocation();
+  const [isLoading, setIsLoading] = useState(false);
   const { data: vipStatus } = trpc.vip.getSubscription.useQuery(undefined, { enabled: !!user });
 
   const upgradeMutation = trpc.vip.createCheckoutSession.useMutation();
 
   const handleUpgrade = (tier: "regular" | "government") => {
-    upgradeMutation.mutate({ tier });
+    if (!user) {
+      toast.error("Please log in first");
+      return;
+    }
+
+    if (tier === "government") {
+      // Redirect to Government VIP application form
+      navigate("/vip-application", { replace: false });
+      return;
+    }
+
+    setIsLoading(true);
+    upgradeMutation.mutate(
+      { tier, returnUrl: window.location.origin + "/vip" },
+      {
+        onSuccess: (session) => {
+          if (session?.sessionUrl) {
+            window.location.href = session.sessionUrl;
+          }
+        },
+        onError: (error) => {
+          toast.error(error.message || "Failed to create checkout session");
+          setIsLoading(false);
+        },
+      }
+    );
   };
 
   const features = {
@@ -91,9 +121,9 @@ export default function VIP() {
           <Button
             className="w-full"
             onClick={() => handleUpgrade("regular")}
-            disabled={vipStatus?.tier === "regular"}
+            disabled={vipStatus?.tier === "regular" || isLoading}
           >
-            {vipStatus?.tier === "regular" ? "Current Plan" : "Upgrade Now"}
+            {isLoading ? "Processing..." : vipStatus?.tier === "regular" ? "Current Plan" : "Upgrade Now"}
           </Button>
         </Card>
 
@@ -126,7 +156,7 @@ export default function VIP() {
             onClick={() => handleUpgrade("government")}
             disabled={vipStatus?.tier === "government"}
           >
-            {vipStatus?.tier === "government" ? "Current Plan" : "Apply Now"}
+            {vipStatus?.tier === "government" ? "Current Plan" : "Apply for Government VIP"}
           </Button>
         </Card>
       </div>

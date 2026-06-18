@@ -64,6 +64,20 @@ export async function getUserPosts(userId: number, limit: number = 20) {
   return result;
 }
 
+export async function getAllPosts(limit: number = 20) {
+  const db = await getDb();
+  if (!db) return [];
+
+  // Get all posts from all users
+  const result = await db
+    .select()
+    .from(posts)
+    .orderBy(desc(posts.createdAt))
+    .limit(limit);
+
+  return result;
+}
+
 export async function getFeedPosts(
   userId: number,
   followingIds: number[],

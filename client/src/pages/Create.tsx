@@ -70,13 +70,15 @@ export default function Create() {
       .filter((tag) => tag.startsWith("#"))
       .map((tag) => tag.substring(1));
 
-    // For now, create post with caption and hashtags
-    // In production, you would upload the file to S3 first
+    // Use preview (base64) as mediaUrl
+    const mediaUrls = preview ? [preview] : [];
+    const mediaKeys = selectedFile ? [selectedFile.name] : [];
+
     createPostMutation.mutate({
-      caption,
+      caption: caption || "",
       hashtags: tags,
-      mediaUrls: preview ? [preview] : [],
-      mediaKeys: [],
+      mediaUrls,
+      mediaKeys,
     });
   };
 
