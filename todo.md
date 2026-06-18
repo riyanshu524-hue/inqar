@@ -30,8 +30,16 @@
 - [x] Account settings (username, email, phone)
 - [x] Privacy settings (private account, who can message, etc)
 - [x] Notification preferences
-- [ ] Blocked users list (needs backend)
+- [ ] Blocked users list (needs backend implementation)
 - [x] Security settings (password, 2FA)
 - [x] Data and privacy
 - [x] Help and support
 - [x] Add settings button to profile page
+
+## Phase 16: Supabase OAuth & Cloudflare Deployment
+- [x] Configure Google OAuth in Supabase
+- [x] Integrate Supabase authentication
+- [x] Sync user data to Supabase database
+- [x] Create wrangler.toml for Cloudflare Workers
+- [x] Add deployment guide
+- [x] Create auth callback page

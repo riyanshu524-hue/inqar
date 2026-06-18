@@ -1,0 +1,54 @@
+import postgres from 'postgres';
+
+const connectionString = 'postgresql://postgres:Riyanshu@2014@db.wstsetvbaajmtmwowezq.supabase.co:5432/postgres';
+
+console.log('Testing Supabase connection...');
+console.log('Host: db.wstsetvbaajmtmwowezq.supabase.co');
+
+try {
+  const sql = postgres(connectionString, { 
+    connect_timeout: 10,
+    idle_timeout: 5,
+    max_lifetime: 60
+  });
+  
+  // Test connection
+  const result = await sql`SELECT NOW() as current_time`;
+  console.log('✓ Supabase connection successful!');
+  console.log('Current time:', result[0].current_time);
+  
+  // Check if governmentVipApplications table exists
+  const tables = await sql`
+    SELECT table_name 
+    FROM information_schema.tables 
+    WHERE table_schema = 'public' 
+    AND table_name = 'governmentVipApplications'
+  `;
+  
+  if (tables.length > 0) {
+    console.log('✓ governmentVipApplications table exists');
+    
+    // Count records
+    const count = await sql`SELECT COUNT(*) as count FROM "governmentVipApplications"`;
+    console.log('Records in governmentVipApplications:', count[0].count);
+  } else {
+    console.log('✗ governmentVipApplications table NOT found');
+  }
+  
+  // List all tables
+  const allTables = await sql`
+    SELECT table_name 
+    FROM information_schema.tables 
+    WHERE table_schema = 'public'
+    ORDER BY table_name
+  `;
+  
+  console.log('\nAll tables in Supabase:');
+  allTables.forEach(t => console.log('  -', t.table_name));
+  
+  await sql.end();
+  process.exit(0);
+} catch (error) {
+  console.error('✗ Connection failed:', error.message);
+  process.exit(1);
+}
