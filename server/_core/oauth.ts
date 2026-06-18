@@ -28,14 +28,19 @@ export function registerOAuthRoutes(app: Express) {
         return;
       }
 
-      await db.upsertUser({
-        openId: userInfo.openId,
-        username: userInfo.email?.split('@')[0] || `user_${userInfo.openId.slice(0, 8)}`,
-        email: userInfo.email || `${userInfo.openId}@inqar.local`,
-        name: userInfo.name || null,
-        loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
-        lastSignedIn: new Date(),
-      });
+      try {
+        await db.upsertUser({
+          openId: userInfo.openId,
+          username: userInfo.email?.split('@')[0] || `user_${userInfo.openId.slice(0, 8)}`,
+          email: userInfo.email || `${userInfo.openId}@inqar.local`,
+          name: userInfo.name || null,
+          loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
+          lastSignedIn: new Date(),
+        });
+      } catch (dbError) {
+        console.warn("[OAuth] Database error, proceeding with session creation", dbError);
+        // Continue even if database save fails - user can still get a session
+      }
 
       const sessionToken = await sdk.createSessionToken(userInfo.openId, {
         name: userInfo.name || "",
