@@ -29,11 +29,22 @@ export const appRouter = router({
   system: systemRouter,
 
   auth: router({
-    me: publicProcedure.query((opts) => opts.ctx.user),
+    me: publicProcedure.query((opts) => {
+      // Return Supabase user if available
+      if (opts.ctx.supabaseUser) {
+        return {
+          id: opts.ctx.supabaseUser.id,
+          email: opts.ctx.supabaseUser.email,
+          name: opts.ctx.supabaseUser.user_metadata?.name || opts.ctx.supabaseUser.email,
+          role: 'user',
+        };
+      }
+      return null;
+    }),
 
     logout: publicProcedure.mutation(({ ctx }) => {
-      const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+      ctx.res.clearCookie("sb-access-token");
+      ctx.res.clearCookie("sb-refresh-token");
       return {
         success: true,
       } as const;

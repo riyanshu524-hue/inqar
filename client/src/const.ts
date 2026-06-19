@@ -1,17 +1,19 @@
 export { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 
-// Generate login URL at runtime so redirect URI reflects the current origin.
+// Generate Supabase login URL at runtime
 export const getLoginUrl = () => {
-  const oauthPortalUrl = import.meta.env.VITE_OAUTH_PORTAL_URL;
-  const appId = import.meta.env.VITE_APP_ID;
-  const redirectUri = `${window.location.origin}/api/oauth/callback`;
-  const state = btoa(redirectUri);
-
-  const url = new URL(`${oauthPortalUrl}/app-auth`);
-  url.searchParams.set("appId", appId);
-  url.searchParams.set("redirectUri", redirectUri);
-  url.searchParams.set("state", state);
-  url.searchParams.set("type", "signIn");
-
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const redirectUri = `${window.location.origin}/api/auth/callback`;
+  
+  if (!supabaseUrl) {
+    console.error("VITE_SUPABASE_URL is not set");
+    return "/";
+  }
+  
+  // Supabase OAuth URL format: https://<project-id>.supabase.co/auth/v1/authorize
+  const url = new URL(`${supabaseUrl}/auth/v1/authorize`);
+  url.searchParams.set("provider", "google");
+  url.searchParams.set("redirect_to", redirectUri);
+  
   return url.toString();
 };
