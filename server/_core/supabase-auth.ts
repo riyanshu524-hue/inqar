@@ -5,24 +5,19 @@ import { ENV } from "./env";
 const supabase = createClient(ENV.supabaseUrl, ENV.supabaseServiceRoleKey);
 
 export function registerSupabaseAuthRoutes(app: Express) {
-  // Get login URL for frontend
-  app.get("/api/auth/login-url", (req: Request, res: Response) => {
-    const redirectUrl = `${req.protocol}://${req.get("host")}/api/auth/callback`;
-    res.json({ redirectUrl });
-  });
-
-  // Supabase callback handler
+  // Supabase callback handler - Supabase will redirect here with code
   app.get("/api/auth/callback", async (req: Request, res: Response) => {
     const code = req.query.code as string;
     const state = req.query.state as string;
 
     if (!code) {
+      console.error("[Supabase Auth] No code provided");
       res.status(400).json({ error: "No authorization code" });
       return;
     }
 
     try {
-      // Exchange code for session
+      // Exchange code for session using Supabase client
       const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
       if (error || !data.session) {
@@ -33,6 +28,8 @@ export function registerSupabaseAuthRoutes(app: Express) {
 
       const session = data.session;
       const user = session.user;
+
+      console.log("[Supabase Auth] User authenticated:", user.email);
 
       // Store session in cookie
       res.cookie("sb-access-token", session.access_token, {
@@ -49,8 +46,8 @@ export function registerSupabaseAuthRoutes(app: Express) {
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
 
-      // Redirect to home or return to app
-      res.redirect("/");
+      // Redirect to home page after successful authentication
+      res.redirect("/feed");
     } catch (error) {
       console.error("[Supabase Auth] Callback error:", error);
       res.status(500).json({ error: "Authentication failed" });
@@ -66,7 +63,7 @@ export function registerSupabaseAuthRoutes(app: Express) {
 
   // Get current user
   app.get("/api/auth/me", async (req: Request, res: Response) => {
-    const accessToken = req.cookies["sb-access-token"];
+    const accessToken = req.cookies?.["sb-access-token"];
 
     if (!accessToken) {
       res.json({ user: null });
