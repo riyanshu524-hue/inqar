@@ -17,7 +17,7 @@ export async function createContext(
 
   try {
     // Get Supabase access token from cookies
-    const accessToken = opts.req.cookies["sb-access-token"];
+    const accessToken = opts.req.cookies?.["sb-access-token"];
 
     if (accessToken) {
       // Verify token with Supabase
