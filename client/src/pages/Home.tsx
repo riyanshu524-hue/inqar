@@ -3,10 +3,26 @@ import { Button } from "@/components/ui/button";
 import { getLoginUrl } from "@/const";
 import { Heart, MessageCircle, Sparkles, ShoppingBag, Users } from "lucide-react";
 import { useLocation } from "wouter";
+import { useState } from "react";
 
 export default function Home() {
   const { user, isAuthenticated } = useAuth();
   const [location, navigate] = useLocation();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleGetStarted = async () => {
+    setIsLoading(true);
+    try {
+      const url = await getLoginUrl();
+      if (url && url !== "/") {
+        window.location.href = url;
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Redirect authenticated users to feed
   if (isAuthenticated && user) {
@@ -27,9 +43,9 @@ export default function Home() {
               INQAR
             </span>
           </div>
-          <a href={getLoginUrl()} className="text-slate-700 hover:text-slate-900 font-medium">
+          <button onClick={handleGetStarted} className="text-slate-700 hover:text-slate-900 font-medium">
             Sign In
-          </a>
+          </button>
         </div>
       </nav>
 
@@ -47,11 +63,14 @@ export default function Home() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4">
-              <a href={getLoginUrl()}>
-                <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
-                  Get Started
-                </Button>
-              </a>
+              <Button 
+                size="lg" 
+                onClick={handleGetStarted}
+                disabled={isLoading}
+                className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+              >
+                {isLoading ? "Redirecting..." : "Get Started"}
+              </Button>
               <Button size="lg" variant="outline" className="w-full sm:w-auto">
                 Learn More
               </Button>
