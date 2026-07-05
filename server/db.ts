@@ -156,6 +156,37 @@ export async function getUserByUsername(username: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+export async function getUserByEmail(email: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const result = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function createUser(data: Partial<InsertUser> & { email: string; passwordHash: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db
+    .insert(users)
+    .values({
+      email: data.email,
+      name: data.name || data.email.split("@")[0],
+      username: data.username || data.email.split("@")[0],
+      passwordHash: data.passwordHash,
+      role: data.role || "user",
+    } as InsertUser)
+    .returning();
+
+  return result[0];
+}
+
 export async function updateUserProfile(
   userId: number,
   updates: Partial<{

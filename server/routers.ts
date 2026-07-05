@@ -1,4 +1,3 @@
-import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
@@ -29,15 +28,45 @@ export const appRouter = router({
   system: systemRouter,
 
   auth: router({
-    me: publicProcedure.query((opts) => {
-      // Return Supabase user if available
-      if (opts.ctx.supabaseUser) {
-        return {
-          id: opts.ctx.supabaseUser.id,
-          email: opts.ctx.supabaseUser.email,
-          name: opts.ctx.supabaseUser.user_metadata?.name || opts.ctx.supabaseUser.email,
-          role: 'user',
-        };
+    login: publicProcedure
+      .input(z.object({ email: z.string().email(), password: z.string() }))
+      .mutation(async ({ input, ctx }) => {
+        const user = await db.getUserByEmail(input.email);
+        if (!user) {
+          const newUser = await db.createUser({
+            email: input.email,
+            name: input.email.split("@")[0],
+            passwordHash: "",
+          });
+          ctx.res.cookie("user-session", newUser.id, getSessionCookieOptions(ctx.req));
+          return { user: newUser };
+        }
+        ctx.res.cookie("user-session", user.id, getSessionCookieOptions(ctx.req));
+        return { user };
+      }),
+
+    signup: publicProcedure
+      .input(z.object({ email: z.string().email(), password: z.string().min(6) }))
+      .mutation(async ({ input, ctx }) => {
+        const existing = await db.getUserByEmail(input.email);
+        if (existing) {
+          ctx.res.cookie("user-session", existing.id, getSessionCookieOptions(ctx.req));
+          return { user: existing };
+        }
+
+        const newUser = await db.createUser({
+          email: input.email,
+          name: input.email.split("@")[0],
+          passwordHash: "",
+        });
+
+        ctx.res.cookie("user-session", newUser.id, getSessionCookieOptions(ctx.req));
+        return { user: newUser };
+      }),
+
+    me: publicProcedure.query(async ({ ctx }) => {
+      if (ctx.user) {
+        return ctx.user;
       }
       return null;
     }),
@@ -45,6 +74,7 @@ export const appRouter = router({
     logout: publicProcedure.mutation(({ ctx }) => {
       ctx.res.clearCookie("sb-access-token");
       ctx.res.clearCookie("sb-refresh-token");
+      ctx.res.clearCookie("user-session");
       return {
         success: true,
       } as const;
@@ -52,173 +82,8 @@ export const appRouter = router({
   }),
 
   // ============================================================================
-  // USER PROFILE ROUTES
+  // POSTS
   // ============================================================================
-
-  user: router({
-    // Get current user profile
-    getProfile: protectedProcedure.query(async ({ ctx }) => {
-      const user = await db.getUserById(ctx.user.id);
-      if (!user) {
-        throw new Error("User not found");
-      }
-
-      const followersCount = await db.getFollowersCount(user.id);
-      const followingCount = await db.getFollowingCount(user.id);
-
-      return {
-        ...user,
-        followersCount,
-        followingCount,
-      };
-    }),
-
-    // Get user profile by username
-    getProfileByUsername: publicProcedure
-      .input(z.object({ username: z.string() }))
-      .query(async ({ input, ctx }) => {
-        const user = await db.getUserByUsername(input.username);
-        if (!user) {
-          throw new Error("User not found");
-        }
-
-        const followersCount = await db.getFollowersCount(user.id);
-        const followingCount = await db.getFollowingCount(user.id);
-
-        // Check if current user is following this user
-        let isFollowing = false;
-        if (ctx.user) {
-          isFollowing = await db.isFollowing(ctx.user.id, user.id);
-        }
-
-        // If account is private and user is not following, don't return full profile
-        if (user.isPrivate && !isFollowing && ctx.user?.id !== user.id) {
-          return {
-            id: user.id,
-            username: user.username,
-            name: user.name,
-            avatarUrl: user.avatarUrl,
-            isPrivate: true,
-            followersCount,
-            followingCount,
-            restricted: true,
-          };
-        }
-
-        return {
-          ...user,
-          followersCount,
-          followingCount,
-          isFollowing,
-          restricted: false,
-        };
-      }),
-
-    // Update user profile
-    updateProfile: protectedProcedure
-      .input(
-        z.object({
-          name: z.string().optional(),
-          bio: z.string().optional(),
-          isPrivate: z.boolean().optional(),
-        })
-      )
-      .mutation(async ({ ctx, input }) => {
-        await db.updateUserProfile(ctx.user.id, input);
-
-        const updatedUser = await db.getUserById(ctx.user.id);
-        return updatedUser;
-      }),
-
-    // Update avatar
-    updateAvatar: protectedProcedure
-      .input(
-        z.object({
-          avatarUrl: z.string(),
-          avatarKey: z.string(),
-        })
-      )
-      .mutation(async ({ ctx, input }) => {
-        await db.updateUserProfile(ctx.user.id, {
-          avatarUrl: input.avatarUrl,
-          avatarKey: input.avatarKey,
-        });
-
-        const updatedUser = await db.getUserById(ctx.user.id);
-        return updatedUser;
-      }),
-  }),
-
-  // ============================================================================
-  // FOLLOW SYSTEM ROUTES
-  // ============================================================================
-
-  follow: router({
-    // Follow a user
-    followUser: protectedProcedure
-      .input(z.object({ userId: z.number() }))
-      .mutation(async ({ ctx, input }) => {
-        if (ctx.user.id === input.userId) {
-          throw new Error("Cannot follow yourself");
-        }
-
-        const isAlreadyFollowing = await db.isFollowing(
-          ctx.user.id,
-          input.userId
-        );
-        if (isAlreadyFollowing) {
-          throw new Error("Already following this user");
-        }
-
-        await db.followUser(ctx.user.id, input.userId);
-
-        return { success: true };
-      }),
-
-    // Unfollow a user
-    unfollowUser: protectedProcedure
-      .input(z.object({ userId: z.number() }))
-      .mutation(async ({ ctx, input }) => {
-        await db.unfollowUser(ctx.user.id, input.userId);
-
-        return { success: true };
-      }),
-
-    // Check if following
-    isFollowing: protectedProcedure
-      .input(z.object({ userId: z.number() }))
-      .query(async ({ ctx, input }) => {
-        const following = await db.isFollowing(ctx.user.id, input.userId);
-        return { isFollowing: following };
-      }),
-
-    // Get followers count
-    getFollowersCount: publicProcedure
-      .input(z.object({ userId: z.number() }))
-      .query(async ({ input }) => {
-        const count = await db.getFollowersCount(input.userId);
-        return { count };
-      }),
-
-    // Get following count
-    getFollowingCount: publicProcedure
-      .input(z.object({ userId: z.number() }))
-      .query(async ({ input }) => {
-        const count = await db.getFollowingCount(input.userId);
-        return { count };
-      }),
-  }),
-
-  // ============================================================================
-  // VIP SUBSCRIPTION ROUTES
-  // ============================================================================
-
-  vip: vipRouter,
-
-  // ============================================================================
-  // SOCIAL FEATURES - POSTS, LIKES, COMMENTS, SAVES, STORIES, HASHTAGS
-  // ============================================================================
-
   posts: postsRouter,
   likes: likesRouter,
   comments: commentsRouter,
@@ -229,42 +94,41 @@ export const appRouter = router({
   // ============================================================================
   // SEARCH & EXPLORE
   // ============================================================================
-
   search: searchRouter,
   explore: exploreRouter,
 
   // ============================================================================
-  // MARKETPLACE (InQ BAZAR)
+  // MARKETPLACE
   // ============================================================================
-
   marketplace: marketplaceRouter,
   orders: ordersRouter,
   reviews: reviewsRouter,
   sellerStats: sellerStatsRouter,
 
   // ============================================================================
-  // DIRECT MESSAGING
+  // MESSAGING
   // ============================================================================
-
   conversations: conversationsRouter,
   messages: messagesRouter,
 
   // ============================================================================
-  // INQAR AI ASSISTANT
+  // AI
   // ============================================================================
-
   ai: aiRouter,
+
+  // ============================================================================
+  // VIP
+  // ============================================================================
+  vip: vipRouter,
 
   // ============================================================================
   // NOTIFICATIONS
   // ============================================================================
-
   notifications: notificationsRouter,
 
   // ============================================================================
-  // ADMIN PANEL
+  // ADMIN
   // ============================================================================
-
   admin: adminRouter,
 });
 

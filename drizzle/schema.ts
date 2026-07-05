@@ -32,6 +32,7 @@ export const users = pgTable(
     bio: text("bio"),
     avatarUrl: text("avatarUrl"),
     avatarKey: varchar("avatarKey", { length: 255 }),
+    passwordHash: varchar("passwordHash", { length: 255 }),
     isPrivate: boolean("isPrivate").default(false).notNull(),
     role: pgEnum("role", ["user", "admin"])("role").default("user").notNull(),
     loginMethod: varchar("loginMethod", { length: 64 }),
