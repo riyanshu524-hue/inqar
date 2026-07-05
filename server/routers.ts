@@ -3,6 +3,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
+import { createUserInSupabase, getUserFromSupabase } from "./supabase-client";
 import {
   postsRouter,
   likesRouter,
@@ -31,15 +32,19 @@ export const appRouter = router({
     login: publicProcedure
       .input(z.object({ email: z.string().email(), password: z.string() }))
       .mutation(async ({ input, ctx }) => {
-        const user = await db.getUserByEmail(input.email);
+        const user = await getUserFromSupabase(input.email);
         if (!user) {
-          const newUser = await db.createUser({
+          const newUser = await createUserInSupabase({
             email: input.email,
             name: input.email.split("@")[0],
+            username: input.email.split("@")[0],
             passwordHash: "",
           });
-          ctx.res.cookie("user-session", newUser.id, getSessionCookieOptions(ctx.req));
-          return { user: newUser };
+          if (newUser) {
+            ctx.res.cookie("user-session", newUser.id, getSessionCookieOptions(ctx.req));
+            return { user: newUser };
+          }
+          throw new Error("Failed to create user");
         }
         ctx.res.cookie("user-session", user.id, getSessionCookieOptions(ctx.req));
         return { user };
@@ -48,20 +53,24 @@ export const appRouter = router({
     signup: publicProcedure
       .input(z.object({ email: z.string().email(), password: z.string().min(6) }))
       .mutation(async ({ input, ctx }) => {
-        const existing = await db.getUserByEmail(input.email);
+        const existing = await getUserFromSupabase(input.email);
         if (existing) {
           ctx.res.cookie("user-session", existing.id, getSessionCookieOptions(ctx.req));
           return { user: existing };
         }
 
-        const newUser = await db.createUser({
+        const newUser = await createUserInSupabase({
           email: input.email,
           name: input.email.split("@")[0],
+          username: input.email.split("@")[0],
           passwordHash: "",
         });
 
-        ctx.res.cookie("user-session", newUser.id, getSessionCookieOptions(ctx.req));
-        return { user: newUser };
+        if (newUser) {
+          ctx.res.cookie("user-session", newUser.id, getSessionCookieOptions(ctx.req));
+          return { user: newUser };
+        }
+        throw new Error("Failed to create user");
       }),
 
     me: publicProcedure.query(async ({ ctx }) => {

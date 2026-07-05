@@ -181,9 +181,13 @@ export async function createUser(data: Partial<InsertUser> & { email: string; pa
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
+  const crypto = await import("crypto");
+  const openId = `email_${crypto.randomUUID()}`;
+
   const result = await db
     .insert(users)
     .values({
+      openId,
       email: data.email,
       name: data.name || data.email.split("@")[0],
       username: data.username || data.email.split("@")[0],
