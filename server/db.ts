@@ -157,16 +157,24 @@ export async function getUserByUsername(username: string) {
 }
 
 export async function getUserByEmail(email: string) {
-  const db = await getDb();
-  if (!db) return undefined;
+  try {
+    const db = await getDb();
+    if (!db) {
+      console.error("[Database] Database not available for getUserByEmail");
+      return undefined;
+    }
 
-  const result = await db
-    .select()
-    .from(users)
-    .where(eq(users.email, email))
-    .limit(1);
+    const result = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
 
-  return result.length > 0 ? result[0] : undefined;
+    return result.length > 0 ? result[0] : undefined;
+  } catch (error) {
+    console.error("[Database] Error in getUserByEmail:", error);
+    return undefined;
+  }
 }
 
 export async function createUser(data: Partial<InsertUser> & { email: string; passwordHash: string }) {
