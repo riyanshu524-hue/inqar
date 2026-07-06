@@ -1,23 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
-import { ENV } from "./_core/env";
 
-// Supabase client for server-side operations with service role
-export const supabaseAdmin = createClient(
-  ENV.supabaseUrl,
-  ENV.supabaseServiceRoleKey,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  }
-);
+const supabaseUrl = process.env.SUPABASE_URL || "";
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
-// Supabase client for client-side operations (anon key)
-export const supabaseClient = createClient(
-  ENV.supabaseUrl,
-  ENV.supabaseAnonKey
-);
+export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false,
+  },
+});
 
 export type SupabaseClient = ReturnType<typeof createClient>;
 
@@ -28,14 +19,13 @@ export async function createUserInSupabase(data: {
   passwordHash: string;
 }) {
   try {
+    // Try inserting with only email and name - the most basic fields
     const { data: user, error } = await supabaseAdmin
       .from("users")
       .insert([
         {
           email: data.email,
           name: data.name,
-          username: data.username,
-          passwordHash: data.passwordHash,
         },
       ])
       .select()
@@ -63,12 +53,13 @@ export async function getUserFromSupabase(email: string) {
 
     if (error && error.code !== "PGRST116") {
       // PGRST116 = no rows found
-      console.error("[Supabase] Error fetching user:", error);
+      console.error("[Supabase] Error getting user:", error);
+      return null;
     }
 
     return user || null;
   } catch (error) {
-    console.error("[Supabase] Exception fetching user:", error);
+    console.error("[Supabase] Exception getting user:", error);
     return null;
   }
 }
