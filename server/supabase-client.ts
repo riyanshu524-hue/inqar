@@ -19,13 +19,17 @@ export async function createUserInSupabase(data: {
   passwordHash: string;
 }) {
   try {
-    // Try inserting with only email and name - the most basic fields
+    // Generate a unique open_id
+    const openId = `email_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Try inserting with email, name, and open_id (required field)
     const { data: user, error } = await supabaseAdmin
       .from("users")
       .insert([
         {
           email: data.email,
           name: data.name,
+          open_id: openId,
         },
       ])
       .select()
