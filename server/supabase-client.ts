@@ -36,8 +36,6 @@ export async function createUserInSupabase(data: {
           name: data.name,
           username: data.username,
           passwordHash: data.passwordHash,
-          openId: `email_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          role: "user",
         },
       ])
       .select()
