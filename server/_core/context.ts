@@ -1,32 +1,32 @@
 import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
 import type { User } from "../../drizzle/schema";
-import { supabase } from "./supabase-auth";
+import { supabaseAdmin } from "../supabase-client";
 
 export type TrpcContext = {
   req: CreateExpressContextOptions["req"];
   res: CreateExpressContextOptions["res"];
   user: User | null;
-  supabaseUser: any | null;
 };
 
 export async function createContext(
   opts: CreateExpressContextOptions
 ): Promise<TrpcContext> {
   let user: User | null = null;
-  let supabaseUser: any | null = null;
 
   try {
-    // Get Supabase access token from cookies
-    const accessToken = opts.req.cookies?.["sb-access-token"];
+    // Get user session from cookie
+    const sessionCookie = opts.req.cookies?.["user-session"];
 
-    if (accessToken) {
-      // Verify token with Supabase
-      const { data, error } = await supabase.auth.getUser(accessToken);
+    if (sessionCookie) {
+      // Fetch user from Supabase by ID
+      const { data, error } = await supabaseAdmin
+        .from("users")
+        .select("*")
+        .eq("id", sessionCookie)
+        .single();
 
-      if (!error && data.user) {
-        supabaseUser = data.user;
-        // In a real app, you'd fetch the user from your database here
-        // For now, we'll just use the Supabase user info
+      if (!error && data) {
+        user = data as User;
       }
     }
   } catch (error) {
@@ -38,6 +38,5 @@ export async function createContext(
     req: opts.req,
     res: opts.res,
     user,
-    supabaseUser,
   };
 }
