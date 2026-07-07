@@ -27,7 +27,7 @@ export default function UserProfile() {
     { enabled: !!userProfile }
   );
 
-  const { data: followStatus } = trpc.follow.isFollowing.useQuery(
+  const { data: isFollowing } = trpc.follow.isFollowing.useQuery(
     { userId: userProfile?.id || 0 },
     { enabled: !!userProfile && !!currentUser }
   );
@@ -51,10 +51,10 @@ export default function UserProfile() {
   const handleFollowToggle = () => {
     if (!userProfile) return;
 
-    if (followStatus?.isFollowing) {
-      unfollowMutation.mutate({ userId: userProfile.id });
+    if (isFollowing) {
+      unfollowMutation.mutate({ followingId: userProfile.id });
     } else {
-      followMutation.mutate({ userId: userProfile.id });
+      followMutation.mutate({ followingId: userProfile.id });
     }
   };
 
@@ -105,9 +105,9 @@ export default function UserProfile() {
                 <Button
                   onClick={handleFollowToggle}
                   disabled={followMutation.isPending || unfollowMutation.isPending}
-                  variant={followStatus?.isFollowing ? "outline" : "default"}
+                  variant={isFollowing ? "outline" : "default"}
                 >
-                  {followStatus?.isFollowing ? "Following" : "Follow"}
+                  {isFollowing ? "Following" : "Follow"}
                 </Button>
               )}
             </div>
@@ -134,7 +134,7 @@ export default function UserProfile() {
       </Card>
 
       {/* Private Account Message */}
-      {userProfile.isPrivate && !followStatus?.isFollowing && currentUser?.id !== userProfile.id && (
+      {userProfile.isPrivate && !isFollowing && currentUser?.id !== userProfile.id && (
         <Card className="p-8 mb-8 text-center">
           <Lock className="w-12 h-12 mx-auto mb-4 opacity-30" />
           <p className="text-lg font-semibold mb-2">This account is private</p>
@@ -143,7 +143,7 @@ export default function UserProfile() {
       )}
 
       {/* Posts Grid */}
-      {!(userProfile.isPrivate && !followStatus?.isFollowing && currentUser?.id !== userProfile.id) && (
+      {!(userProfile.isPrivate && !isFollowing && currentUser?.id !== userProfile.id) && (
         <div>
           <h2 className="text-2xl font-bold mb-6">Posts</h2>
           {userPosts && userPosts.length > 0 ? (

@@ -11,6 +11,8 @@
 - [x] Implement OAuth redirect flow
 - [x] Add logout button in profile menu
 - [x] Show auth state in navigation
+- [x] Fix Supabase user creation with correct column names (snake_case)
+- [x] Email/password authentication working with Supabase
 
 ## Phase 13: VIP Subscription - Real Stripe Integration
 - [ ] Fix "Apply for Government VIP" button - wire to backend

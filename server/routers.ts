@@ -24,6 +24,8 @@ import { aiRouter } from "./routers-ai";
 import { vipRouter } from "./routers-vip";
 import { notificationsRouter } from "./routers-notifications";
 import { adminRouter } from "./routers-admin";
+import { followRouter } from "./routers-follow";
+import { userRouter } from "./routers-user";
 
 export const appRouter = router({
   system: systemRouter,
@@ -99,6 +101,16 @@ export const appRouter = router({
   saves: savesRouter,
   stories: storiesRouter,
   hashtags: hashtagsRouter,
+
+  // ============================================================================
+  // FOLLOW SYSTEM
+  // ============================================================================
+  follow: followRouter,
+
+  // ============================================================================
+  // USER PROFILES
+  // ============================================================================
+  user: userRouter,
 
   // ============================================================================
   // SEARCH & EXPLORE
