@@ -15,10 +15,10 @@
 - [x] Email/password authentication working with Supabase
 
 ## Phase 13: VIP Subscription - Real Stripe Integration
-- [ ] Fix "Apply for Government VIP" button - wire to backend
-- [ ] Fix "Upgrade to VIP" button - create Stripe checkout session
-- [ ] Show subscription status correctly
-- [ ] Display VIP benefits and features
+- [x] Fix "Apply for Government VIP" button - wire to backend
+- [x] Fix "Upgrade to VIP" button - create Stripe checkout session
+- [x] Show subscription status correctly
+- [x] Display VIP benefits and features
 
 ## Phase 14: Admin Panel - Real Data
 - [x] Show real users from database (not demo)
