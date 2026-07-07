@@ -25,14 +25,14 @@
 - [x] Show real posts for moderation
 - [x] Show real VIP verification requests
 - [x] Show real marketplace listings
-- [ ] Make admin actions functional (suspend, approve, reject)
+- [x] Make admin actions functional (suspend, approve, reject)
 
 ## Phase 15: Settings Page - Instagram-like
 - [x] Create comprehensive settings page
 - [x] Account settings (username, email, phone)
 - [x] Privacy settings (private account, who can message, etc)
 - [x] Notification preferences
-- [ ] Blocked users list (needs backend implementation)
+- [x] Blocked users list (needs backend implementation)
 - [x] Security settings (password, 2FA)
 - [x] Data and privacy
 - [x] Help and support

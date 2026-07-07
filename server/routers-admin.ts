@@ -58,6 +58,13 @@ export const adminRouter = router({
       return { success: true };
     }),
 
+  suspendUser: adminProcedure
+    .input(z.object({ userId: z.number() }))
+    .mutation(async ({ input }) => {
+      await dbAdmin.suspendUser(input.userId);
+      return { success: true };
+    }),
+
   // ============================================================================
   // POST MANAGEMENT
   // ============================================================================

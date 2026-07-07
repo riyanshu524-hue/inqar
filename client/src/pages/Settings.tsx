@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
-import { ArrowLeft, Lock, Bell, Eye, Users, Trash2, HelpCircle, LogOut } from "lucide-react";
+import { ArrowLeft, Lock, Bell, Eye, Users, Trash2, HelpCircle, LogOut, X } from "lucide-react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -17,10 +17,22 @@ export default function Settings() {
 
   // Fetch user data
   const { data: user, isLoading } = trpc.auth.me.useQuery();
+  const { data: blockedUsers = [], refetch: refetchBlocked } = trpc.block.getBlockedUsers.useQuery();
+  
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => {
       toast.success("Logged out successfully");
       navigate("/");
+    },
+  });
+
+  const unblockMutation = trpc.block.unblockUser.useMutation({
+    onSuccess: () => {
+      toast.success("User unblocked");
+      refetchBlocked();
+    },
+    onError: (error) => {
+      toast.error("Failed to unblock user: " + (error?.message || "Unknown error"));
     },
   });
 
@@ -133,8 +145,25 @@ export default function Settings() {
               <Users className="w-5 h-5" />
               Blocked Users
             </h2>
-            <p className="text-sm text-muted-foreground mb-4">You haven't blocked anyone yet</p>
-            <Button variant="outline" className="w-full">Manage Blocked Users</Button>
+            {blockedUsers && blockedUsers.length > 0 ? (
+              <div className="space-y-2">
+                {blockedUsers.map((userId: number) => (
+                  <div key={userId} className="flex items-center justify-between p-3 border rounded">
+                    <span className="text-sm">User ID: {userId}</span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => unblockMutation.mutate({ userId })}
+                      disabled={unblockMutation.isPending}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">You haven't blocked anyone yet</p>
+            )}
           </Card>
         </TabsContent>
 

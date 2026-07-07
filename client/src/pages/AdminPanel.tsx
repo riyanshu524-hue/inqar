@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
-import { Users, FileText, CheckCircle, BarChart3, Trash2, Check } from "lucide-react";
+import { Users, FileText, CheckCircle, BarChart3, Trash2, Check, Ban } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 
@@ -44,6 +44,16 @@ export default function AdminPanel() {
     onSuccess: () => {
       toast.success("Listing deleted");
       refetchListings();
+    },
+  });
+
+  const suspendUserMutation = trpc.admin.suspendUser.useMutation({
+    onSuccess: () => {
+      toast.success("User suspended");
+      refetchUsers();
+    },
+    onError: (error) => {
+      toast.error("Failed to suspend user: " + (error?.message || "Unknown error"));
     },
   });
 
@@ -120,6 +130,17 @@ export default function AdminPanel() {
                     </div>
                     <div className="flex items-center gap-2">
                       {user.role === "admin" && <Badge>Admin</Badge>}
+                      {user.role !== "admin" && (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => suspendUserMutation.mutate({ userId: user.id })}
+                          disabled={suspendUserMutation.isPending}
+                        >
+                          <Ban className="w-4 h-4 mr-1" />
+                          Suspend
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}

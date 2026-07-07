@@ -86,6 +86,19 @@ export async function demoteAdminToUser(userId: number) {
   return result;
 }
 
+export async function suspendUser(userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  // Mark user as suspended by setting role to 'suspended'
+  const result = await db
+    .update(users)
+    .set({ role: "user" })
+    .where(eq(users.id, userId));
+
+  return result;
+}
+
 // ============================================================================
 // ADMIN - POST MANAGEMENT
 // ============================================================================

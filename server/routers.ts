@@ -26,6 +26,7 @@ import { notificationsRouter } from "./routers-notifications";
 import { adminRouter } from "./routers-admin";
 import { followRouter } from "./routers-follow";
 import { userRouter } from "./routers-user";
+import { blockRouter } from "./routers-block";
 
 export const appRouter = router({
   system: systemRouter,
@@ -111,6 +112,11 @@ export const appRouter = router({
   // USER PROFILES
   // ============================================================================
   user: userRouter,
+
+  // ============================================================================
+  // BLOCK SYSTEM
+  // ============================================================================
+  block: blockRouter,
 
   // ============================================================================
   // SEARCH & EXPLORE
