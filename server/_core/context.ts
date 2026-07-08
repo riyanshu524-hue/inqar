@@ -16,6 +16,7 @@ export async function createContext(
   try {
     // Get user session from cookie
     const sessionCookie = opts.req.cookies?.["user-session"];
+    console.log("[Context] Session cookie:", sessionCookie);
 
     if (sessionCookie) {
       // Fetch user from Supabase by ID
@@ -25,7 +26,10 @@ export async function createContext(
         .eq("id", sessionCookie)
         .single();
 
-      if (!error && data) {
+      if (error) {
+        console.error("[Context] Supabase error:", error);
+      } else if (data) {
+        console.log("[Context] User loaded:", data.id, data.email);
         user = data as User;
       }
     }

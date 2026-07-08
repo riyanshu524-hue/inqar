@@ -44,12 +44,16 @@ export const appRouter = router({
             passwordHash: "",
           });
           if (newUser) {
-            ctx.res.cookie("user-session", newUser.id, getSessionCookieOptions(ctx.req));
+            const userId = String(newUser.id);
+            console.log("[Auth] Setting cookie for new user:", userId);
+            ctx.res.cookie("user-session", userId, getSessionCookieOptions(ctx.req));
             return { user: newUser };
           }
           throw new Error("Failed to create user");
         }
-        ctx.res.cookie("user-session", user.id, getSessionCookieOptions(ctx.req));
+        const userId = String(user.id);
+        console.log("[Auth] Setting cookie for existing user:", userId);
+        ctx.res.cookie("user-session", userId, getSessionCookieOptions(ctx.req));
         return { user };
       }),
 
@@ -69,11 +73,13 @@ export const appRouter = router({
           passwordHash: "",
         });
 
-        if (newUser) {
-          ctx.res.cookie("user-session", newUser.id, getSessionCookieOptions(ctx.req));
-          return { user: newUser };
+        if (!newUser) {
+          console.error("[Auth] createUserInSupabase returned null for email:", input.email);
+          throw new Error("Failed to create user in database");
         }
-        throw new Error("Failed to create user");
+
+        ctx.res.cookie("user-session", newUser.id, getSessionCookieOptions(ctx.req));
+        return { user: newUser };
       }),
 
     me: publicProcedure.query(async ({ ctx }) => {
