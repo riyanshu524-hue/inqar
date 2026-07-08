@@ -39,10 +39,14 @@ export function getSessionCookieOptions(
   //       ? hostname
   //       : undefined;
 
+  // In development, allow insecure cookies for localhost testing
+  const isDev = process.env.NODE_ENV === "development";
+  const isLocalhost = req.hostname === "localhost" || req.hostname === "127.0.0.1";
+  
   return {
     httpOnly: true,
     path: "/",
-    sameSite: "none",
-    secure: isSecureRequest(req),
+    sameSite: isDev && isLocalhost ? "lax" : "none",
+    secure: isDev && isLocalhost ? false : isSecureRequest(req),
   };
 }
