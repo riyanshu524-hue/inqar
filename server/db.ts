@@ -1,6 +1,6 @@
 import { eq, and } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
-import mysql from "mysql2/promise";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import {
   InsertUser,
   users,
@@ -18,13 +18,13 @@ import {
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
-let _client: any = null;
+let _client: ReturnType<typeof postgres> | null = null;
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _client = await mysql.createConnection(process.env.DATABASE_URL);
+      _client = postgres(process.env.DATABASE_URL);
       _db = drizzle(_client);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
@@ -48,377 +48,349 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 
   try {
     // Generate username from email or name if not provided
-    let username = user.username;
-    if (!username) {
-      const baseUsername =
-        user.email?.split("@")[0] ||
-        user.name?.replace(/\s+/g, "") ||
-        `user_${user.openId.slice(0, 8)}`;
-      username = baseUsername;
-    }
+    const username =
+      user.username ||
+      (user.name ? user.name.replace(/\s+/g, "_").toLowerCase() : `user_${Date.now()}`);
 
-    // Ensure email is provided
-    const email = user.email || `${user.openId}@inqar.local`;
-
-    const values: InsertUser = {
-      openId: user.openId,
-      username,
-      email,
-    };
-    const updateSet: Record<string, unknown> = {};
-
-    const textFields = ["name", "loginMethod"] as const;
-    type TextField = (typeof textFields)[number];
-
-    const assignNullable = (field: TextField) => {
-      const value = user[field];
-      if (value === undefined) return;
-      const normalized = value ?? null;
-      values[field] = normalized;
-      updateSet[field] = normalized;
-    };
-
-    textFields.forEach(assignNullable);
-
-    if (user.lastSignedIn !== undefined) {
-      values.lastSignedIn = user.lastSignedIn;
-      updateSet.lastSignedIn = user.lastSignedIn;
-    }
-    if (user.role !== undefined) {
-      values.role = user.role;
-      updateSet.role = user.role;
-    } else if (user.openId === ENV.ownerOpenId) {
-      values.role = "admin";
-      updateSet.role = "admin";
-    }
-
-    if (!values.lastSignedIn) {
-      values.lastSignedIn = new Date();
-    }
-
-    if (Object.keys(updateSet).length === 0) {
-      updateSet.lastSignedIn = new Date();
-    }
-
-    // PostgreSQL upsert: insert or update on conflict
     await db
       .insert(users)
-      .values(values)
+      .values({
+        ...user,
+        username,
+      })
       .onConflictDoUpdate({
         target: users.openId,
-        set: updateSet,
+        set: {
+          lastSignedIn: new Date(),
+        },
       });
   } catch (error) {
-    console.error("[Database] Failed to upsert user:", error);
+    console.error("[Database] Error upserting user:", error);
     throw error;
   }
 }
 
-export async function getUserByOpenId(openId: string) {
+export async function getUser(id: number): Promise<User | null> {
   const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot get user: database not available");
-    return undefined;
-  }
+  if (!db) return null;
 
-  const result = await db
-    .select()
-    .from(users)
-    .where(eq(users.openId, openId))
-    .limit(1);
-
-  return result.length > 0 ? result[0] : undefined;
-}
-
-export async function getUserById(id: number) {
-  const db = await getDb();
-  if (!db) return undefined;
-
-  const result = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, id))
-    .limit(1);
-
-  return result.length > 0 ? result[0] : undefined;
-}
-
-export async function getUserByUsername(username: string) {
-  const db = await getDb();
-  if (!db) return undefined;
-
-  const result = await db
-    .select()
-    .from(users)
-    .where(eq(users.username, username))
-    .limit(1);
-
-  return result.length > 0 ? result[0] : undefined;
-}
-
-export async function getUserByEmail(email: string) {
   try {
-    const db = await getDb();
-    if (!db) {
-      console.error("[Database] Database not available for getUserByEmail");
-      return undefined;
-    }
+    const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    return result[0] || null;
+  } catch (error) {
+    console.error("[Database] Error getting user:", error);
+    return null;
+  }
+}
 
+export async function getUserByOpenId(openId: string): Promise<User | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  try {
+    const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
+    return result[0] || null;
+  } catch (error) {
+    console.error("[Database] Error getting user by openId:", error);
+    return null;
+  }
+}
+
+export async function getFollows(userId: number): Promise<Follow[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    return await db.select().from(follows).where(eq(follows.followerId, userId));
+  } catch (error) {
+    console.error("[Database] Error getting follows:", error);
+    return [];
+  }
+}
+
+export async function addFollow(followerId: number, followingId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  try {
+    await db.insert(follows).values({
+      followerId,
+      followingId,
+    });
+  } catch (error) {
+    console.error("[Database] Error adding follow:", error);
+  }
+}
+
+export async function removeFollow(followerId: number, followingId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  try {
+    await db
+      .delete(follows)
+      .where(and(eq(follows.followerId, followerId), eq(follows.followingId, followingId)));
+  } catch (error) {
+    console.error("[Database] Error removing follow:", error);
+  }
+}
+
+export async function getVipSubscription(userId: number): Promise<VipSubscription | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  try {
     const result = await db
       .select()
-      .from(users)
-      .where(eq(users.email, email))
+      .from(vipSubscriptions)
+      .where(eq(vipSubscriptions.userId, userId))
       .limit(1);
-
-    return result.length > 0 ? result[0] : undefined;
+    return result[0] || null;
   } catch (error) {
-    console.error("[Database] Error in getUserByEmail:", error);
-    return undefined;
+    console.error("[Database] Error getting VIP subscription:", error);
+    return null;
   }
 }
 
-export async function createUser(data: Partial<InsertUser> & { email: string; passwordHash: string }) {
+export async function createVipSubscription(
+  data: InsertVipSubscription
+): Promise<VipSubscription | null> {
   const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  if (!db) return null;
 
-  const crypto = await import("crypto");
-  const openId = `email_${crypto.randomUUID()}`;
-
-  const result = await db
-    .insert(users)
-    .values({
-      openId,
-      email: data.email,
-      name: data.name || data.email.split("@")[0],
-      username: data.username || data.email.split("@")[0],
-      passwordHash: data.passwordHash,
-      role: data.role || "user",
-    } as InsertUser)
-    .returning();
-
-  return result[0];
-}
-
-export async function updateUserProfile(
-  userId: number,
-  updates: Partial<{
-    name: string;
-    bio: string;
-    avatarUrl: string;
-    avatarKey: string;
-    isPrivate: boolean;
-  }>
-) {
-  const db = await getDb();
-  if (!db) return undefined;
-
-  const result = await db
-    .update(users)
-    .set(updates)
-    .where(eq(users.id, userId));
-
-  return result;
-}
-
-// ============================================================================
-// FOLLOW SYSTEM
-// ============================================================================
-
-export async function followUser(followerId: number, followingId: number) {
-  const db = await getDb();
-  if (!db) return undefined;
-
-  // Prevent self-follow
-  if (followerId === followingId) {
-    throw new Error("Cannot follow yourself");
+  try {
+    const result = await db.insert(vipSubscriptions).values(data).returning();
+    return result[0] || null;
+  } catch (error) {
+    console.error("[Database] Error creating VIP subscription:", error);
+    return null;
   }
-
-  const result = await db.insert(follows).values({
-    followerId,
-    followingId,
-  });
-
-  return result;
 }
 
-export async function unfollowUser(followerId: number, followingId: number) {
+export async function getGovernmentVipApplication(
+  userId: number
+): Promise<GovernmentVipApplication | null> {
   const db = await getDb();
-  if (!db) return undefined;
+  if (!db) return null;
 
-  const result = await db
-    .delete(follows)
-    .where(
-      and(
-        eq(follows.followerId, followerId),
-        eq(follows.followingId, followingId)
-      )
-    );
-
-  return result;
+  try {
+    const result = await db
+      .select()
+      .from(governmentVipApplications)
+      .where(eq(governmentVipApplications.userId, userId))
+      .limit(1);
+    return result[0] || null;
+  } catch (error) {
+    console.error("[Database] Error getting government VIP application:", error);
+    return null;
+  }
 }
 
-export async function isFollowing(
-  followerId: number,
-  followingId: number
-): Promise<boolean> {
+export async function createGovernmentVipApplication(
+  data: InsertGovernmentVipApplication
+): Promise<GovernmentVipApplication | null> {
   const db = await getDb();
-  if (!db) return false;
+  if (!db) return null;
 
-  const result = await db
-    .select()
-    .from(follows)
-    .where(
-      and(
-        eq(follows.followerId, followerId),
-        eq(follows.followingId, followingId)
-      )
-    )
-    .limit(1);
+  try {
+    const result = await db
+      .insert(governmentVipApplications)
+      .values(data)
+      .returning();
+    return result[0] || null;
+  } catch (error) {
+    console.error("[Database] Error creating government VIP application:", error);
+    return null;
+  }
+}
 
-  return result.length > 0;
+export async function getPendingGovernmentVipApplications(): Promise<GovernmentVipApplication[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    return await db
+      .select()
+      .from(governmentVipApplications)
+      .where(eq(governmentVipApplications.status, "pending"));
+  } catch (error) {
+    console.error("[Database] Error getting pending VIP applications:", error);
+    return [];
+  }
+}
+
+export async function approveGovernmentVipApplication(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  try {
+    await db
+      .update(governmentVipApplications)
+      .set({
+        status: "approved",
+        approvedAt: new Date(),
+      })
+      .where(eq(governmentVipApplications.id, id));
+  } catch (error) {
+    console.error("[Database] Error approving VIP application:", error);
+  }
+}
+
+export async function declineGovernmentVipApplication(
+  id: number,
+  reason: string
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  try {
+    await db
+      .update(governmentVipApplications)
+      .set({
+        status: "declined",
+        declinedAt: new Date(),
+        declineReason: reason,
+      })
+      .where(eq(governmentVipApplications.id, id));
+  } catch (error) {
+    console.error("[Database] Error declining VIP application:", error);
+  }
 }
 
 export async function getFollowersCount(userId: number): Promise<number> {
   const db = await getDb();
   if (!db) return 0;
 
-  const result = await db
-    .select()
-    .from(follows)
-    .where(eq(follows.followingId, userId));
-
-  return result.length;
+  try {
+    const result = await db
+      .select()
+      .from(follows)
+      .where(eq(follows.followingId, userId));
+    return result.length;
+  } catch (error) {
+    console.error("[Database] Error getting followers count:", error);
+    return 0;
+  }
 }
 
 export async function getFollowingCount(userId: number): Promise<number> {
   const db = await getDb();
   if (!db) return 0;
 
-  const result = await db
-    .select()
-    .from(follows)
-    .where(eq(follows.followerId, userId));
-
-  return result.length;
+  try {
+    const result = await db
+      .select()
+      .from(follows)
+      .where(eq(follows.followerId, userId));
+    return result.length;
+  } catch (error) {
+    console.error("[Database] Error getting following count:", error);
+    return 0;
+  }
 }
 
-// ============================================================================
-// VIP SUBSCRIPTIONS
-// ============================================================================
-
-export async function getVipSubscription(
-  userId: number
-): Promise<VipSubscription | undefined> {
+export async function updateUserProfile(
+  userId: number,
+  data: Partial<User>
+): Promise<User | null> {
   const db = await getDb();
-  if (!db) return undefined;
+  if (!db) return null;
 
-  const result = await db
-    .select()
-    .from(vipSubscriptions)
-    .where(eq(vipSubscriptions.userId, userId))
-    .limit(1);
-
-  return result.length > 0 ? result[0] : undefined;
-}
-
-export async function createVipSubscription(
-  subscription: InsertVipSubscription
-) {
-  const db = await getDb();
-  if (!db) return undefined;
-
-  const result = await db.insert(vipSubscriptions).values(subscription);
-  return result;
+  try {
+    const result = await db
+      .update(users)
+      .set(data)
+      .where(eq(users.id, userId))
+      .returning();
+    return result[0] || null;
+  } catch (error) {
+    console.error("[Database] Error updating user profile:", error);
+    return null;
+  }
 }
 
 export async function updateVipSubscription(
-  userId: number,
-  updates: Partial<VipSubscription>
-) {
+  id: number,
+  data: Partial<VipSubscription>
+): Promise<VipSubscription | null> {
   const db = await getDb();
-  if (!db) return undefined;
+  if (!db) return null;
 
-  const result = await db
-    .update(vipSubscriptions)
-    .set(updates)
-    .where(eq(vipSubscriptions.userId, userId));
-
-  return result;
+  try {
+    const result = await db
+      .update(vipSubscriptions)
+      .set(data)
+      .where(eq(vipSubscriptions.id, id))
+      .returning();
+    return result[0] || null;
+  } catch (error) {
+    console.error("[Database] Error updating VIP subscription:", error);
+    return null;
+  }
 }
 
-// ============================================================================
-// GOVERNMENT VIP APPLICATIONS
-// ============================================================================
-
-export async function getGovernmentVipApplication(
-  userId: number
-): Promise<GovernmentVipApplication | undefined> {
+export async function getUserByUsername(username: string): Promise<User | null> {
   const db = await getDb();
-  if (!db) return undefined;
+  if (!db) return null;
 
-  const result = await db
-    .select()
-    .from(governmentVipApplications)
-    .where(eq(governmentVipApplications.userId, userId))
-    .limit(1);
-
-  return result.length > 0 ? result[0] : undefined;
+  try {
+    const result = await db
+      .select()
+      .from(users)
+      .where(eq(users.username, username))
+      .limit(1);
+    return result[0] || null;
+  } catch (error) {
+    console.error("[Database] Error getting user by username:", error);
+    return null;
+  }
 }
 
-export async function createGovernmentVipApplication(
-  application: InsertGovernmentVipApplication
-) {
+export async function followUser(followerId: number, followingId: number): Promise<Follow | null> {
   const db = await getDb();
-  if (!db) return undefined;
+  if (!db) return null;
 
-  const result = await db
-    .insert(governmentVipApplications)
-    .values(application);
-  return result;
+  try {
+    const result = await db
+      .insert(follows)
+      .values({
+        followerId,
+        followingId,
+      })
+      .returning();
+    return result[0] || null;
+  } catch (error) {
+    console.error("[Database] Error following user:", error);
+    return null;
+  }
 }
 
-export async function getPendingGovernmentVipApplications() {
+export async function unfollowUser(followerId: number, followingId: number): Promise<void> {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) return;
 
-  const result = await db
-    .select()
-    .from(governmentVipApplications)
-    .where(eq(governmentVipApplications.status, "pending"));
-
-  return result;
+  try {
+    await db
+      .delete(follows)
+      .where(and(eq(follows.followerId, followerId), eq(follows.followingId, followingId)));
+  } catch (error) {
+    console.error("[Database] Error unfollowing user:", error);
+  }
 }
 
-export async function approveGovernmentVipApplication(applicationId: number) {
+export async function isFollowing(followerId: number, followingId: number): Promise<boolean> {
   const db = await getDb();
-  if (!db) return undefined;
+  if (!db) return false;
 
-  const result = await db
-    .update(governmentVipApplications)
-    .set({
-      status: "approved",
-      approvedAt: new Date(),
-    })
-    .where(eq(governmentVipApplications.id, applicationId));
-
-  return result;
-}
-
-export async function declineGovernmentVipApplication(
-  applicationId: number,
-  reason: string
-) {
-  const db = await getDb();
-  if (!db) return undefined;
-
-  const result = await db
-    .update(governmentVipApplications)
-    .set({
-      status: "declined",
-      declinedAt: new Date(),
-      declineReason: reason,
-    })
-    .where(eq(governmentVipApplications.id, applicationId));
-
-  return result;
+  try {
+    const result = await db
+      .select()
+      .from(follows)
+      .where(and(eq(follows.followerId, followerId), eq(follows.followingId, followingId)))
+      .limit(1);
+    return result.length > 0;
+  } catch (error) {
+    console.error("[Database] Error checking if following:", error);
+    return false;
+  }
 }

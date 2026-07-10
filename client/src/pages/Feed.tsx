@@ -5,10 +5,14 @@ import { Spinner } from "@/components/ui/spinner";
 import { Heart, MessageCircle, Share2, Bookmark } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
+import { useRealtimePosts } from "@/hooks/useRealtimePosts";
 
 export default function Feed() {
   const { user, isAuthenticated, loading } = useAuth();
   const [selectedPost, setSelectedPost] = useState<number | null>(null);
+
+  // Enable real-time sync for posts
+  useRealtimePosts();
 
   const { data: feedData, isLoading: postsLoading } = trpc.posts.getFeedPosts.useQuery(
     { limit: 20 },
